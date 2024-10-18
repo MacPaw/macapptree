@@ -8,7 +8,7 @@ import re
 def get_tree(app_bundle):
     tmp_file = tempfile.NamedTemporaryFile(delete=True)
     try:
-        subprocess.check_call(["python", "-m", "macapptree.main", "-a", app_bundle, "--oa", tmp_file.name, "--hit-test"])
+        subprocess.check_call(["python", "-m", "macapptree.main", "-a", app_bundle, "--oa", tmp_file.name])
         return json.load(tmp_file)
     except subprocess.CalledProcessError as e:
         print(f"Failed to extract app accessibility for {app_bundle}. Error: {e}")
@@ -23,8 +23,7 @@ def get_tree_screenshot(app_bundle):
         result = subprocess.run(["python", "-m", "macapptree.main", 
                                "-a", app_bundle, 
                                "--oa", a11y_tmp_file.name,
-                               "--os", screenshot_tmp_file.name,
-                               "--hit-test"], 
+                               "--os", screenshot_tmp_file.name], 
                                capture_output=True, text=True)
         json_match = re.search(r'{.*}', result.stdout, re.DOTALL)
         if json_match:
