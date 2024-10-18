@@ -27,15 +27,16 @@ def get_tree(app_bundle):
 
 def get_tree_screenshot(app_bundle):
     launch_app(app_bundle)
-
+    
     a11y_tmp_file = tempfile.NamedTemporaryFile(delete=True)
     screenshot_tmp_file = tempfile.NamedTemporaryFile(delete=True, suffix=".png")
     try:
-        result = subprocess.check_output(["python", "-m", "macapptree.main", 
+        result = subprocess.run(["python", "-m", "macapptree.main", 
                                "-a", app_bundle, 
                                "--oa", a11y_tmp_file.name,
-                               "--os", screenshot_tmp_file.name])
-        json_match = re.search(r'{.*}', result, re.DOTALL)
+                               "--os", screenshot_tmp_file.name], 
+                               capture_output=True, text=True, check=True)
+        json_match = re.search(r'{.*}', result.stdout, re.DOTALL)
         if json_match:
             json_str = json_match.group(0)
             screenshots_paths_dict = json.loads(json_str)
