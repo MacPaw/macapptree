@@ -12,8 +12,6 @@ import os
 
 def main(app_bundle, output_accessibility_file, output_screenshot_file):
     workspace = AppKit.NSWorkspace.sharedWorkspace()
-    if not apps.check_app_running(workspace, app_bundle):
-        apps.launch_app(app_bundle)
 
     app = apps.application_for_bundle(app_bundle, workspace)
     app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)

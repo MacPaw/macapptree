@@ -5,7 +5,16 @@ import json
 import re
 
 
+def launch_app(app_bundle):
+    try:
+        subprocess.check_call(["python", "-m", "macapptree.launch_app", "-a", app_bundle])
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to launch app: {app_bundle}. Error: {e}")
+
+
 def get_tree(app_bundle):
+    launch_app(app_bundle)
+
     tmp_file = tempfile.NamedTemporaryFile(delete=True)
     try:
         subprocess.check_call(["python", "-m", "macapptree.main", "-a", app_bundle, "--oa", tmp_file.name])
@@ -17,6 +26,8 @@ def get_tree(app_bundle):
 
 
 def get_tree_screenshot(app_bundle):
+    launch_app(app_bundle)
+    
     a11y_tmp_file = tempfile.NamedTemporaryFile(delete=True)
     screenshot_tmp_file = tempfile.NamedTemporaryFile(delete=True, suffix=".png")
     try:
