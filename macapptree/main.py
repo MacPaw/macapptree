@@ -3,7 +3,7 @@ import macapptree.apps as apps
 from macapptree.uielement import UIElement
 from macapptree.extractor import extract_window
 from macapptree.screenshot_app_window import screenshot_window_to_file
-from macapptree.window import segment_window_components
+from macapptree.window_tools import segment_window_components
 import argparse
 import json
 
