@@ -3,12 +3,12 @@ import AppKit
 import ApplicationServices
 import macapptree.uielement as uielement
 import macapptree.files as files
-import macapptree.window as window
+import macapptree.window_tools as window_tools
 
 
 # perform a hit test on the specified point
 def hit_test(point, window_element):
-    window_point = window.convert_point_to_window(point, window_element.position)
+    window_point = window_tools.convert_point_to_window(point, window_element.position)
     system_component = ApplicationServices.AXUIElementCreateSystemWide()
     err, value = ApplicationServices.AXUIElementCopyElementAtPosition(
         system_component, window_point.x, window_point.y, None
@@ -41,7 +41,7 @@ def extract_with_hit_test(window, app_bundle, output_file, print_nodes):
             parent_window, window_offset_x, window_offset_y
         )
 
-        if window.windows_are_equal(window, parent_window_element):
+        if window_tools.windows_are_equal(window, parent_window_element):
             element_not_found = True
             for child in window.children:
                 if (
