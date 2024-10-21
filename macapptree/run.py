@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import json
 import re
+import os
 
 
 def launch_app(app_bundle):
@@ -37,15 +38,19 @@ def get_tree_screenshot(app_bundle):
                                "--os", screenshot_tmp_file.name], 
                                capture_output=True, text=True, check=True)
         json_match = re.search(r'{.*}', result.stdout, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(0)
-            screenshots_paths_dict = json.loads(json_str)
-            croped_img = Image.open(screenshots_paths_dict["croped_screenshot_path"])
-            segmented_img = Image.open(screenshots_paths_dict["segmented_screenshot_path"])
+        if not json_match:
+            print(f"Failed to extract screenshots for {app_bundle}")
+            return json.load(a11y_tmp_file), None, None
 
-            return json.load(a11y_tmp_file), croped_img, segmented_img
-        else:
-            return json.load(a11y_tmp_file)
+        json_str = json_match.group(0)
+        screenshots_paths_dict = json.loads(json_str)
+        croped_img = Image.open(screenshots_paths_dict["croped_screenshot_path"])
+        segmented_img = Image.open(screenshots_paths_dict["segmented_screenshot_path"])
+
+        os.remove(screenshots_paths_dict["croped_screenshot_path"])
+        os.remove(screenshots_paths_dict["segmented_screenshot_path"])
+
+        return json.load(a11y_tmp_file), croped_img, segmented_img
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
         print(f"Failed to extract app accessibility for {app_bundle}. Error: {e}")
     finally:

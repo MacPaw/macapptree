@@ -36,6 +36,8 @@ def main(app_bundle, output_accessibility_file, output_screenshot_file):
     if extracted and extracted_hit:
         if os.path.getsize(output_accessibility_file) < os.path.getsize(output_accessibility_file_hit):
             shutil.move(output_accessibility_file_hit, output_accessibility_file)
+        else:
+            os.remove(output_accessibility_file_hit)
     elif extracted_hit:
         shutil.move(output_accessibility_file_hit, output_accessibility_file)
     
