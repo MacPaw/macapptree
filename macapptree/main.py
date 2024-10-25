@@ -7,6 +7,7 @@ from macapptree.window_tools import segment_window_components
 import argparse
 import shutil
 import json
+import time
 import os
 
 
@@ -15,6 +16,8 @@ def main(app_bundle, output_accessibility_file, output_screenshot_file):
 
     app = apps.application_for_bundle(app_bundle, workspace)
     app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
+    time.sleep(1)
+    
     application = apps.application_for_process_id(app.processIdentifier())
 
     window = apps.windows_for_application(application)[-1]

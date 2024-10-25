@@ -6,6 +6,12 @@ import re
 import os
 
 
+def get_app_bundle(app_name):
+    command = ['osascript', '-e', f'id of app "{app_name}"']
+    bundle = subprocess.run(command, stdout=subprocess.PIPE).stdout.decode('utf-8')[:-1]
+    return bundle
+
+
 def launch_app(app_bundle):
     try:
         subprocess.check_call(["python", "-m", "macapptree.launch_app", "-a", app_bundle])
@@ -22,6 +28,7 @@ def get_tree(app_bundle):
         return json.load(tmp_file)
     except subprocess.CalledProcessError as e:
         print(f"Failed to extract app accessibility for {app_bundle}. Error: {e}")
+        raise e
     finally:
         tmp_file.close()
 
@@ -53,6 +60,7 @@ def get_tree_screenshot(app_bundle):
         return json.load(a11y_tmp_file), croped_img, segmented_img
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
         print(f"Failed to extract app accessibility for {app_bundle}. Error: {e}")
+        raise e
     finally:
         a11y_tmp_file.close()
         screenshot_tmp_file.close()
