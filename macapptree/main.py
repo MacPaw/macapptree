@@ -11,17 +11,23 @@ import time
 import os
 
 
+def get_main_window(windows):
+    ui_windows = [UIElement(window) for window in windows]
+    main_window = max([(window, len(window.recursive_children())) for window in ui_windows], key=lambda x: x[1])[0]
+    return main_window
+
+
 def main(app_bundle, output_accessibility_file, output_screenshot_file):
     workspace = AppKit.NSWorkspace.sharedWorkspace()
 
     app = apps.application_for_bundle(app_bundle, workspace)
     app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
     time.sleep(1)
-    
+
     application = apps.application_for_process_id(app.processIdentifier())
 
-    window = apps.windows_for_application(application)[-1]
-    window_element = UIElement(window)
+    windows = apps.windows_for_application(application)
+    window_element = get_main_window(windows)
 
     output_accessibility_file_hit = output_accessibility_file.replace(".tmp", "_hit.tmp")
 
