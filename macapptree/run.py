@@ -8,7 +8,7 @@ import os
 
 def get_app_bundle(app_name):
     command = ['osascript', '-e', f'id of app "{app_name}"']
-    bundle = subprocess.check_call(command, stdout=subprocess.PIPE).stdout.decode('utf-8')[:-1]
+    bundle = subprocess.run(command, stdout=subprocess.PIPE).stdout.decode('utf-8')[:-1]
     return bundle
 
 
