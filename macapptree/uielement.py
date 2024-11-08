@@ -145,7 +145,7 @@ class UIElement:
                 self.value = UIElement(attribute_value, offset_x, offset_y)
 
         # set children
-        if self.max_depth > 0:
+        if self.max_depth != 0:
             self.children, self.action_items = self._get_children_and_actions(element, start_position, offset_x, offset_y)
         else:
             self.children, self.action_items = [], []
@@ -207,10 +207,11 @@ class UIElement:
         return children_all, action_items
 
     def recursive_children(self):
-        if len(self.children) == 0:
-            children_all, action_items = self._get_children_and_actions(self.ax_element, self.position, 0, 0)
-        else:
-            children_all = self.children
+        # if len(self.children) == 0:
+        #     children_all, action_items = self._get_children_and_actions(self.ax_element, self.position, 0, 0)
+        # else:
+        #     children_all = self.children
+        children_all = self.children
         recursive_children = []
         for child in children_all:
             recursive_children.append(child)
