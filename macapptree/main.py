@@ -11,13 +11,13 @@ import time
 import os
 
 
-def get_main_window(windows):
-    ui_windows = [UIElement(window) for window in windows]
+def get_main_window(windows, max_depth):
+    ui_windows = [UIElement(window, max_depth=max_depth) for window in windows]
     main_window = max([(window, len(window.recursive_children())) for window in ui_windows], key=lambda x: x[1])[0]
     return main_window
 
 
-def main(app_bundle, output_accessibility_file, output_screenshot_file):
+def main(app_bundle, output_accessibility_file, output_screenshot_file, max_depth):
     workspace = AppKit.NSWorkspace.sharedWorkspace()
 
     app = apps.application_for_bundle(app_bundle, workspace)
@@ -27,7 +27,7 @@ def main(app_bundle, output_accessibility_file, output_screenshot_file):
     application = apps.application_for_process_id(app.processIdentifier())
 
     windows = apps.windows_for_application(application)
-    window_element = get_main_window(windows)
+    window_element = get_main_window(windows, max_depth)
 
     output_accessibility_file_hit = output_accessibility_file.replace(".tmp", "_hit.tmp")
 
@@ -67,11 +67,13 @@ if __name__ == "__main__":
     arg_parser.add_argument("-a", type=str, required=True, help="The application bundle identifier")
     arg_parser.add_argument("--oa", type=str, required=True, help="Accessibility output file")
     arg_parser.add_argument("--os", type=str, default=None, required=False, help="Screenshot output file")
+    arg_parser.add_argument("--max-depth", type=int, default=-1, required=False, help="Maximum depth of the accessibility")
 
     args = arg_parser.parse_args()
     app_bundle = args.a
     output_accessibility_file = args.oa
     output_screenshot_file = args.os
+    max_depth = args.max_depth
 
     # start processing all the running applications or the specified application
-    main(app_bundle, output_accessibility_file, output_screenshot_file)
+    main(app_bundle, output_accessibility_file, output_screenshot_file, max_depth)

@@ -66,7 +66,7 @@ class UIElement:
         self.identifier = self.component_hash()
         self.content_identifier = self.children_content_hash(self.children)
 
-    def __init__(self, element, offset_x=0, offset_y=0):
+    def __init__(self, element, offset_x=0, offset_y=0, max_depth=-1):
         # set attributes
 
         self.ax_element = element
@@ -78,6 +78,7 @@ class UIElement:
         self.description = ""
         self.role_description = ""
         self.value = None
+        self.max_depth = max_depth
 
         # set role
         self.role = element_attribute(element, ApplicationServices.kAXRoleAttribute)
@@ -144,7 +145,10 @@ class UIElement:
                 self.value = UIElement(attribute_value, offset_x, offset_y)
 
         # set children
-        self.children, self.action_items = self._get_children_and_actions(element, start_position, offset_x, offset_y)
+        if self.max_depth > 0:
+            self.children, self.action_items = self._get_children_and_actions(element, start_position, offset_x, offset_y)
+        else:
+            self.children, self.action_items = [], []
 
         self.calculate_hashes()
 
@@ -184,15 +188,15 @@ class UIElement:
                     )
                     if children_elements is not None and len(children_elements) > 0:
                         found_children = UIElement.children(
-                            children[0], offset_x, offset_y
+                            children[0], offset_x, offset_y, self.max_depth - 1
                         )
                         children_all = found_children
                     else:
-                        children_all = UIElement.children(element, offset_x, offset_y)
+                        children_all = UIElement.children(element, offset_x, offset_y, self.max_depth - 1)
                 else:
-                    children_all = UIElement.children(element, offset_x, offset_y)
+                    children_all = UIElement.children(element, offset_x, offset_y, self.max_depth - 1)
             else:
-                children_all = UIElement.children(element, offset_x, offset_y)
+                children_all = UIElement.children(element, offset_x, offset_y, self.max_depth - 1)
 
         children_all = [element for element in children_all if element.position is not None]
         children_all = sorted(
@@ -277,7 +281,7 @@ class UIElement:
 
     # parse children
     @classmethod
-    def children(cls, element, offset_x=0, offset_y=0):
+    def children(cls, element, offset_x=0, offset_y=0, max_depth=-1):
         children = element_attribute(element, ApplicationServices.kAXChildrenAttribute)
         visible_children = element_attribute(
             element, ApplicationServices.kAXVisibleChildrenAttribute
@@ -291,7 +295,7 @@ class UIElement:
 
         result = []
         for child in found_children:
-            child = cls(child, offset_x, offset_y)
+            child = cls(child, offset_x, offset_y, max_depth)
             result.append(child)
         return result
 
