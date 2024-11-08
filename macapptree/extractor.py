@@ -18,7 +18,7 @@ def hit_test(point, window_element):
     return None
 
 
-def extract_with_hit_test(window, app_bundle, output_file, print_nodes):
+def extract_with_hit_test(window, app_bundle, output_file, print_nodes, max_depth):
     window_offset_x = window.position.x
     window_offset_y = window.position.y
 
@@ -32,13 +32,13 @@ def extract_with_hit_test(window, app_bundle, output_file, print_nodes):
 
     # find the root window
     found_root_element = UIElement.find_root_element(group_element)
-    root_element = UIElement(found_root_element, window_offset_x, window_offset_y)
+    root_element = UIElement(found_root_element, window_offset_x, window_offset_y, max_depth)
     parent_window = uielement.element_attribute(
         found_root_element, ApplicationServices.kAXWindowAttribute
     )
     if parent_window is not None:
         parent_window_element = UIElement(
-            parent_window, window_offset_x, window_offset_y
+            parent_window, window_offset_x, window_offset_y, max_depth
         )
 
         if window_tools.windows_are_equal(window, parent_window_element):
@@ -68,14 +68,14 @@ def extract_with_hit_test(window, app_bundle, output_file, print_nodes):
 
 # extract the window
 def extract_window(
-    window, app_bundle, output_file, perform_hit_test, print_nodes
+    window, app_bundle, output_file, perform_hit_test, print_nodes, max_depth
 ) -> bool:
     if window is None:
         return False
 
     if perform_hit_test:
         print("Parsing window using hit test")
-        return extract_with_hit_test(window, app_bundle, output_file, print_nodes)
+        return extract_with_hit_test(window, app_bundle, output_file, print_nodes, max_depth)
 
     else:
         print("Parsing regular window structure")

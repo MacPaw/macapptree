@@ -188,15 +188,15 @@ class UIElement:
                     )
                     if children_elements is not None and len(children_elements) > 0:
                         found_children = UIElement.children(
-                            children[0], offset_x, offset_y, self.max_depth - 1
+                            children[0], offset_x, offset_y, self.max_depth
                         )
                         children_all = found_children
                     else:
-                        children_all = UIElement.children(element, offset_x, offset_y, self.max_depth - 1)
+                        children_all = UIElement.children(element, offset_x, offset_y, self.max_depth)
                 else:
-                    children_all = UIElement.children(element, offset_x, offset_y, self.max_depth - 1)
+                    children_all = UIElement.children(element, offset_x, offset_y, self.max_depth)
             else:
-                children_all = UIElement.children(element, offset_x, offset_y, self.max_depth - 1)
+                children_all = UIElement.children(element, offset_x, offset_y, self.max_depth)
 
         children_all = [element for element in children_all if element.position is not None]
         children_all = sorted(
@@ -296,7 +296,7 @@ class UIElement:
 
         result = []
         for child in found_children:
-            child = cls(child, offset_x, offset_y, max_depth)
+            child = cls(child, offset_x, offset_y, max_depth - 1)
             result.append(child)
         return result
 

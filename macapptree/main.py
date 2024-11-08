@@ -32,11 +32,11 @@ def main(app_bundle, output_accessibility_file, output_screenshot_file, max_dept
     output_accessibility_file_hit = output_accessibility_file.replace(".tmp", "_hit.tmp")
 
     extracted = extract_window(
-            window_element, app_bundle, output_accessibility_file, False, False
+            window_element, app_bundle, output_accessibility_file, False, False, max_depth
         )
     
     extracted_hit = extract_window(
-            window_element, app_bundle, output_accessibility_file_hit, True, False
+            window_element, app_bundle, output_accessibility_file_hit, True, False, max_depth
         )
     
     if not extracted and not extracted_hit:

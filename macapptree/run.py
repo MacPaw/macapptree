@@ -46,6 +46,7 @@ def get_tree_screenshot(app_bundle, max_depth=-1):
                                "--os", screenshot_tmp_file.name,
                                "--max-depth", str(max_depth)], 
                                capture_output=True, text=True, check=True)
+        # print(result.stdout)
         json_match = re.search(r'{.*}', result.stdout, re.DOTALL)
         if not json_match:
             print(f"Failed to extract screenshots for {app_bundle}")
