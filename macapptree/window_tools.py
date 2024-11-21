@@ -5,6 +5,16 @@ from PIL import Image, ImageDraw
 from time import sleep
 
 
+_screen_scaling_factor = 1
+
+# get the screen scaling factor
+def store_screen_scaling_factor():
+    for screen in AppKit.NSScreen.screens():
+        global _screen_scaling_factor
+        _screen_scaling_factor = screen.backingScaleFactor()
+        print(f"Screen scaling factor: {_screen_scaling_factor}")
+
+
 # convert point from screen coordinates to window coordinates
 def convert_point_to_window(point, window_element):
     for screen in AppKit.NSScreen.screens():
@@ -175,7 +185,12 @@ def segment_image(image_path, window_element, image_drawer=None, image=None):
 
     # iterate over all children
     for child in window_element.children:
-        position = child.position
+        bbox = child.visible_bbox
+
+        if bbox is None:
+            continue
+
+        # position = child.position
         size = child.size
 
         if size is None:
@@ -189,20 +204,26 @@ def segment_image(image_path, window_element, image_drawer=None, image=None):
         if size.height < 2:
             height_offset = 0
 
-        # calculate the bottom right coordinate based on the origin and frame
-        bottom_right = (position.x + size.width, position.y + size.height)
-        retina_position = (position.x * 2, (position.y * 2))
+        retina_position = (bbox[0] * _screen_scaling_factor, (bbox[1] * _screen_scaling_factor))
 
         # update the bottom right coordinate to support retina displays
         bottom_right = (
-            (bottom_right[0] * 2) - 1,
-            ((bottom_right[1]) * 2) - height_offset + 1,
+            (bbox[2] * _screen_scaling_factor) - 1,
+            ((bbox[3]) * _screen_scaling_factor) - height_offset + 1,
         )
 
         color = color_for_role(child.role)
 
-        # draw a rectangle with a colored border
-        draw.rectangle([retina_position, bottom_right], outline=color, width=2)
+        if bottom_right[0] < 0 or bottom_right[0] < retina_position[0]:
+            bottom_right = (retina_position[0], bottom_right[1])
+        if bottom_right[1] < 0 or bottom_right[1] < retina_position[1]:
+            bottom_right = (bottom_right[0], retina_position[1])
+
+        try:
+            # draw a rectangle with a colored border
+            draw.rectangle([retina_position, bottom_right], outline=color, width=2)
+        except Exception as e:
+            print(f"Error drawing rectangle: {e}")
         segment_image(image_path, child, image_drawer=draw, image=image)
     if image_drawer is None:
         # save the image

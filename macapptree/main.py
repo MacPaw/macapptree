@@ -1,5 +1,6 @@
 import AppKit
 import macapptree.apps as apps
+from macapptree.window_tools import store_screen_scaling_factor
 from macapptree.uielement import UIElement
 from macapptree.extractor import extract_window
 from macapptree.screenshot_app_window import screenshot_window_to_file
@@ -18,6 +19,9 @@ def get_main_window(windows, max_depth):
 
 
 def main(app_bundle, output_accessibility_file, output_screenshot_file, max_depth):
+    # store the screen scaling factor
+    store_screen_scaling_factor()
+
     workspace = AppKit.NSWorkspace.sharedWorkspace()
 
     app = apps.application_for_bundle(app_bundle, workspace)
@@ -29,26 +33,26 @@ def main(app_bundle, output_accessibility_file, output_screenshot_file, max_dept
     windows = apps.windows_for_application(application)
     window_element = get_main_window(windows, max_depth)
 
-    output_accessibility_file_hit = output_accessibility_file.replace(".tmp", "_hit.tmp")
+    # output_accessibility_file_hit = output_accessibility_file.replace(".tmp", "_hit.tmp")
 
     extracted = extract_window(
             window_element, app_bundle, output_accessibility_file, False, False, max_depth
         )
     
-    extracted_hit = extract_window(
-            window_element, app_bundle, output_accessibility_file_hit, True, False, max_depth
-        )
+    # extracted_hit = extract_window(
+    #         window_element, app_bundle, output_accessibility_file_hit, True, False, max_depth
+    #     )
     
-    if not extracted and not extracted_hit:
+    if not extracted:
         raise "Couldn't extract accessibility"
     
-    if extracted and extracted_hit:
-        if os.path.getsize(output_accessibility_file) < os.path.getsize(output_accessibility_file_hit):
-            shutil.move(output_accessibility_file_hit, output_accessibility_file)
-        else:
-            os.remove(output_accessibility_file_hit)
-    elif extracted_hit:
-        shutil.move(output_accessibility_file_hit, output_accessibility_file)
+    # if extracted:
+    #     if os.path.getsize(output_accessibility_file) < os.path.getsize(output_accessibility_file_hit):
+    #         shutil.move(output_accessibility_file_hit, output_accessibility_file)
+    #     else:
+    #         os.remove(output_accessibility_file_hit)
+    # elif extracted_hit:
+    #     shutil.move(output_accessibility_file_hit, output_accessibility_file)
     
     if output_screenshot_file:
         output_croped, _ = screenshot_window_to_file(app.localizedName(), window_element.name, output_screenshot_file)

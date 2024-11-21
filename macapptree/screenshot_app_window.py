@@ -181,14 +181,15 @@ def screenshot_windows(
         if name == "":
             name = element_identifier
         file_name = get_filename(name, extension, add_cursor_move)
-        filename = take_screenshot(identifier, file_name, output_folder)
+        file_path = take_screenshot(identifier, file_name, output_folder)
         time.sleep(0.4)
 
-        filename_cropped = filename.replace(f".{extension}", f"_cropped.{extension}")
+        file_path_cropped = file_path.replace(f".{extension}", f"_cropped.{extension}")
+        file_name_cropped = file_name.replace(f".{extension}", f"_cropped.{extension}")
 
-        scaled_coors = crop_screenshot(filename, window_coords, filename_cropped)
+        scaled_coors = crop_screenshot(file_path, window_coords, file_path_cropped)
         time.sleep(0.4)
-        return (filename_cropped, scaled_coors)
+        return (file_name_cropped, scaled_coors)
     except Exception as e:
         print(repr(e))
         return

@@ -4,6 +4,7 @@ import Foundation
 import AppKit
 import re
 import json
+import copy
 
 
 # convert CF attribute to python object
@@ -66,7 +67,7 @@ class UIElement:
         self.identifier = self.component_hash()
         self.content_identifier = self.children_content_hash(self.children)
 
-    def __init__(self, element, offset_x=0, offset_y=0, max_depth=-1):
+    def __init__(self, element, offset_x=0, offset_y=0, max_depth=-1, parents_visible_bbox=None):
         # set attributes
 
         self.ax_element = element
@@ -108,15 +109,17 @@ class UIElement:
             offset_x = start_position.x
             offset_y = start_position.y
 
+        self.absolute_position = copy.copy(start_position)
         self.position = start_position
-        if self.role != "AXWindow":
-            if self.position is not None:
-                self.position.x -= max(0, offset_x)
-                self.position.y -= max(0, offset_y)
+        if self.position is not None:
+            self.position.x -= max(0, offset_x)
+            self.position.y -= max(0, offset_y)
         self.size = element_value(size, ApplicationServices.kAXValueCGSizeType)
 
+        self._set_bboxes(parents_visible_bbox)
+
         # set component center
-        if start_position is None:
+        if start_position is None or self.size is None:
             print("Position is None")
             return
         self.center = (
@@ -154,6 +157,28 @@ class UIElement:
 
         self.unrolled = False
 
+    def _set_bboxes(self, parents_visible_bbox):
+        if not self.position or not self.size:
+            return
+        self.bbox = [int(self.position.x), 
+                     int(self.position.y), 
+                     int(self.position.x + self.size.width), 
+                     int(self.position.y + self.size.height)]
+        if parents_visible_bbox:
+            # check if not intersected
+            if  self.bbox[0] > parents_visible_bbox[2] or \
+                self.bbox[1] > parents_visible_bbox[3] or \
+                self.bbox[2] < parents_visible_bbox[0] or \
+                self.bbox[3] < parents_visible_bbox[1]:
+                self.visible_bbox = None
+            else:
+                self.visible_bbox = [int(max(self.bbox[0], parents_visible_bbox[0])), 
+                                    int(max(self.bbox[1], parents_visible_bbox[1])),
+                                    int(min(self.bbox[2], parents_visible_bbox[2])),
+                                    int(min(self.bbox[3], parents_visible_bbox[3]))]
+        else:
+            self.visible_bbox = self.bbox
+
     def _get_children_and_actions(self, element, start_position, offset_x, offset_y):
         action_items = []
         children_all = []
@@ -188,15 +213,15 @@ class UIElement:
                     )
                     if children_elements is not None and len(children_elements) > 0:
                         found_children = UIElement.children(
-                            children[0], offset_x, offset_y, self.max_depth
+                            children[0], offset_x, offset_y, self.max_depth, self.visible_bbox
                         )
                         children_all = found_children
                     else:
-                        children_all = UIElement.children(element, offset_x, offset_y, self.max_depth)
+                        children_all = UIElement.children(element, offset_x, offset_y, self.max_depth, self.visible_bbox)
                 else:
-                    children_all = UIElement.children(element, offset_x, offset_y, self.max_depth)
+                    children_all = UIElement.children(element, offset_x, offset_y, self.max_depth, self.visible_bbox)
             else:
-                children_all = UIElement.children(element, offset_x, offset_y, self.max_depth)
+                children_all = UIElement.children(element, offset_x, offset_y, self.max_depth, self.visible_bbox)
 
         children_all = [element for element in children_all if element.position is not None]
         children_all = sorted(
@@ -207,11 +232,10 @@ class UIElement:
         return children_all, action_items
 
     def recursive_children(self):
-        # if len(self.children) == 0:
-        #     children_all, action_items = self._get_children_and_actions(self.ax_element, self.position, 0, 0)
-        # else:
-        #     children_all = self.children
-        children_all = self.children
+        if len(self.children) == 0:
+            children_all, _ = self._get_children_and_actions(self.ax_element, self.position, 0, 0)
+        else:
+            children_all = self.children
         recursive_children = []
         for child in children_all:
             recursive_children.append(child)
@@ -230,6 +254,8 @@ class UIElement:
         position_string = f"{self.position.x:.0f};{self.position.y:.0f}"
         size_string = f"{self.size.width:.0f};{self.size.height:.0f}"
         enabled_string = str(self.enabled)
+        # if self.value is not None:
+        #     enabled_string += str(self.value)
         return self.hash_from_string(
             position_string + size_string + enabled_string + self.role
         )
@@ -282,7 +308,7 @@ class UIElement:
 
     # parse children
     @classmethod
-    def children(cls, element, offset_x=0, offset_y=0, max_depth=-1):
+    def children(cls, element, offset_x=0, offset_y=0, max_depth=-1, visible_bbox=None):
         children = element_attribute(element, ApplicationServices.kAXChildrenAttribute)
         visible_children = element_attribute(
             element, ApplicationServices.kAXVisibleChildrenAttribute
@@ -296,7 +322,7 @@ class UIElement:
 
         result = []
         for child in found_children:
-            child = cls(child, offset_x, offset_y, max_depth - 1)
+            child = cls(child, offset_x, offset_y, max_depth - 1, visible_bbox)
             result.append(child)
         return result
 
@@ -313,6 +339,11 @@ class UIElement:
             value = json.dumps(value.to_dict(), indent=4)
         elif isinstance(value, AppKit.NSDate):
             value = str(value)
+
+        if self.absolute_position is not None:
+            absolute_position = f"{self.absolute_position.x:.2f};{self.absolute_position.y:.2f}"
+        else:
+            absolute_position = ""
 
         if self.position is not None:
             position = f"{self.position.x:.2f};{self.position.y:.2f}"
@@ -331,8 +362,12 @@ class UIElement:
             "description": self.description,
             "role_description": self.role_description,
             "value": value,
+            "absolute_position": absolute_position,
             "position": position,
             "size": size,
+            "enabled": self.enabled,
+            "bbox": self.bbox,
+            "visible_bbox": self.visible_bbox,
             "children": children_to_dict(self.children),
         }
 
