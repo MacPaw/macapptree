@@ -7,6 +7,7 @@ import os
 import AppKit
 from unidecode import unidecode
 from PIL import Image
+from macapptree.exceptions import WindowNotFoundException
 
 
 class ScreencaptureEx(Exception):
@@ -138,13 +139,21 @@ def find_window(
 
     # search for the window
     for identifier, name, window_coords in windows:
-
         decoded_name = unidecode(name)
         decoded_window_name = unidecode(window_name)
+        
         if decoded_name == decoded_window_name or decoded_window_name == app_name or window_name == "":  # Sometimes popup windows have an empty name
             return identifier, decoded_name, window_coords
     
-    raise f"Window {window_name} not found."
+    # if nothing found, try again with 'startwith'
+    for identifier, name, window_coords in windows:
+        decoded_name = unidecode(name)
+        decoded_window_name = unidecode(window_name)
+        
+        if decoded_window_name.startswith(decoded_name):  # Sometimes popup windows have an empty name
+            return identifier, decoded_name, window_coords
+    
+    raise WindowNotFoundException(f"Window {window_name} not found.")
 
 
 def screenshot_window_to_file(
@@ -152,18 +161,14 @@ def screenshot_window_to_file(
         window_name: str,
         output_file: str
 ) -> str:
-    try:
-        identifier, _, window_coords = find_window(app_name, window_name)
-        take_screenshot(identifier, output_file)
-        _, extension = os.path.splitext(output_file)
-        time.sleep(0.4)
-        filename_cropped = output_file.replace(f".{extension}", f"_cropped.{extension}")
-        scaled_coors = crop_screenshot(output_file, window_coords, filename_cropped)
-        time.sleep(0.4)
-        return filename_cropped, scaled_coors
-    except Exception as e:
-        print(repr(e))
-        return
+    identifier, _, window_coords = find_window(app_name, window_name)
+    take_screenshot(identifier, output_file)
+    _, extension = os.path.splitext(output_file)
+    time.sleep(0.4)
+    filename_cropped = output_file.replace(f".{extension}", f"_cropped.{extension}")
+    scaled_coors = crop_screenshot(output_file, window_coords, filename_cropped)
+    time.sleep(0.4)
+    return filename_cropped, scaled_coors
 
 
 # screenshot required window
