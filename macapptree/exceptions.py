@@ -1,0 +1,2 @@
+class WindowNotFoundException(BaseException):
+    pass
