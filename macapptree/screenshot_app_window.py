@@ -136,11 +136,16 @@ def find_window(
         ):
     # generate all windows
     windows = gen_windows(app_name)
+    if window_name is None:
+        identifier, name, window_coords = windows[0]
+        decoded_name = unidecode(name)
+        return identifier, decoded_name, window_coords
+
+    decoded_window_name = unidecode(window_name)
 
     # search for the window
     for identifier, name, window_coords in windows:
         decoded_name = unidecode(name)
-        decoded_window_name = unidecode(window_name)
         
         if decoded_name == decoded_window_name or decoded_window_name == app_name or window_name == "":  # Sometimes popup windows have an empty name
             return identifier, decoded_name, window_coords
@@ -148,7 +153,6 @@ def find_window(
     # if nothing found, try again with 'startwith'
     for identifier, name, window_coords in windows:
         decoded_name = unidecode(name)
-        decoded_window_name = unidecode(window_name)
         
         if decoded_window_name.startswith(decoded_name):  # Sometimes popup windows have an empty name
             return identifier, decoded_name, window_coords

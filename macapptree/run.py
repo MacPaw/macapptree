@@ -20,12 +20,15 @@ def launch_app(app_bundle):
         raise e
 
 
-def get_tree(app_bundle, max_depth=-1):
+def get_tree(app_bundle, max_depth=None):
     launch_app(app_bundle)
 
     tmp_file = tempfile.NamedTemporaryFile(delete=False)
+    command = ["python", "-m", "macapptree.main", "-a", app_bundle, "--oa", tmp_file.name]
+    if max_depth:
+        command.extend(["--max-depth", str(max_depth)])
     try:
-        subprocess.check_call(["python", "-m", "macapptree.main", "-a", app_bundle, "--oa", tmp_file.name, "--max-depth", str(max_depth)])
+        subprocess.check_call(command)
         return json.load(tmp_file)
     except subprocess.CalledProcessError as e:
         print(f"Failed to extract app accessibility for {app_bundle}. Error: {e.stderr}")
@@ -34,18 +37,19 @@ def get_tree(app_bundle, max_depth=-1):
         tmp_file.close()
 
 
-def get_tree_screenshot(app_bundle, max_depth=-1):
+def get_tree_screenshot(app_bundle, max_depth=None):
     launch_app(app_bundle)
     
     a11y_tmp_file = tempfile.NamedTemporaryFile(delete=False)
     screenshot_tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    command = ["python", "-m", "macapptree.main", 
+                "-a", app_bundle, 
+                "--oa", a11y_tmp_file.name,
+                "--os", screenshot_tmp_file.name]
+    if max_depth:
+        command.extend(["--max-depth", str(max_depth)])
     try:
-        result = subprocess.run(["python", "-m", "macapptree.main", 
-                               "-a", app_bundle, 
-                               "--oa", a11y_tmp_file.name,
-                               "--os", screenshot_tmp_file.name,
-                               "--max-depth", str(max_depth)], 
-                               capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
         # print(result.stdout)
         json_match = re.search(r'{.*}', result.stdout, re.DOTALL)
         if not json_match:

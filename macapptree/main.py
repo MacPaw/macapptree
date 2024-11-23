@@ -71,7 +71,7 @@ if __name__ == "__main__":
     arg_parser.add_argument("-a", type=str, required=True, help="The application bundle identifier")
     arg_parser.add_argument("--oa", type=str, required=True, help="Accessibility output file")
     arg_parser.add_argument("--os", type=str, default=None, required=False, help="Screenshot output file")
-    arg_parser.add_argument("--max-depth", type=int, default=-1, required=False, help="Maximum depth of the accessibility")
+    arg_parser.add_argument("--max-depth", type=int, required=False, help="Maximum depth of the accessibility")
 
     args = arg_parser.parse_args()
     app_bundle = args.a

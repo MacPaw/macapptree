@@ -67,7 +67,7 @@ class UIElement:
         self.identifier = self.component_hash()
         self.content_identifier = self.children_content_hash(self.children)
 
-    def __init__(self, element, offset_x=0, offset_y=0, max_depth=-1, parents_visible_bbox=None):
+    def __init__(self, element, offset_x=0, offset_y=0, max_depth=None, parents_visible_bbox=None):
         # set attributes
 
         self.ax_element = element
@@ -148,7 +148,7 @@ class UIElement:
                 self.value = UIElement(attribute_value, offset_x, offset_y)
 
         # set children
-        if self.max_depth != 0:
+        if self.max_depth is None or self.max_depth > 0:
             self.children, self.action_items = self._get_children_and_actions(element, start_position, offset_x, offset_y)
         else:
             self.children, self.action_items = [], []
@@ -308,7 +308,7 @@ class UIElement:
 
     # parse children
     @classmethod
-    def children(cls, element, offset_x=0, offset_y=0, max_depth=-1, visible_bbox=None):
+    def children(cls, element, offset_x=0, offset_y=0, max_depth=None, visible_bbox=None):
         children = element_attribute(element, ApplicationServices.kAXChildrenAttribute)
         visible_children = element_attribute(
             element, ApplicationServices.kAXVisibleChildrenAttribute
@@ -321,9 +321,10 @@ class UIElement:
                 found_children.extend(visible_children)
 
         result = []
-        for child in found_children:
-            child = cls(child, offset_x, offset_y, max_depth - 1, visible_bbox)
-            result.append(child)
+        if max_depth is None or max_depth > 0:
+            for child in found_children:
+                child = cls(child, offset_x, offset_y, max_depth - 1 if max_depth is not None else None, visible_bbox)
+                result.append(child)
         return result
 
     # to dict
