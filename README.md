@@ -1,4 +1,4 @@
-![MacPaw Research](https://pbs.twimg.com/profile_banners/3993798502/1720615716/1500x500)
+[![MacPaw Research](https://pbs.twimg.com/profile_banners/3993798502/1720615716/1500x500)](https://research.macpaw.com)
 
 ![PyPI - Version](https://img.shields.io/pypi/v/macapptree)
 
@@ -118,3 +118,9 @@ tree, im, im_seg = get_tree_screenshot(bundle)
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## MacPaw Research
+
+Visit our site to learn more 😉
+
+https://research.macpaw.com
