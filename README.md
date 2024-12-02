@@ -19,7 +19,7 @@ To install `macapptree`, use `pip`:
 ```bash
 pip install macapptree
 ```
-> Note: This package requires macOS and Python 3.8+.
+> Note: This package requires macOS and Python 3.10+.
 
 ---
 
