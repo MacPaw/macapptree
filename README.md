@@ -26,8 +26,8 @@ pip install macapptree
 ## Usage
 
 The library provides two primary functions:
-* get_tree: Extracts the accessibility tree of a macOS app.
-* get_tree_screenshot: Extracts the accessibility tree and generates screenshots.
+* `get_tree`: Extracts the accessibility tree of a macOS app.
+* `get_tree_screenshot`: Extracts the accessibility tree and generates screenshots.
 
 ### Example
 
