@@ -159,6 +159,8 @@ class UIElement:
 
     def _set_bboxes(self, parents_visible_bbox):
         if not self.position or not self.size:
+            self.bbox = None
+            self.visible_bbox = None
             return
         self.bbox = [int(self.position.x), 
                      int(self.position.y), 
