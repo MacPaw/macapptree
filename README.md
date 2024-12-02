@@ -1,3 +1,7 @@
+![MacPaw Research](https://pbs.twimg.com/profile_banners/3993798502/1720615716/1500x500)
+
+![PyPI - Version](https://img.shields.io/pypi/v/macapptree)
+
 # macapptree
 
 `macapptree` is a Python package that extracts the accessibility tree of a macOS application's screen in JSON format. It also provides an option to capture screenshots of the application, including labeled bounding boxes with different colors representing various element types. This tool is useful for accessibility testing, UI automation, and visual debugging.
