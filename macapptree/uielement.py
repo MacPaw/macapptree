@@ -61,25 +61,18 @@ def CFAttributeToPyObject(attrValue):
 
 # UIElement class which represents accessibility element and all its attributes
 class UIElement:
-
-    # calculate hash for the element
-    def calculate_hashes(self):
-        self.identifier = self.component_hash()
-        self.content_identifier = self.children_content_hash(self.children)
-
     def __init__(self, element, offset_x=0, offset_y=0, max_depth=None, parents_visible_bbox=None):
         # set attributes
-
         self.ax_element = element
         self.content_identifier = ""
         self.identifier = ""
         self.name = ""
-        # self.action_items = []
         self.children = []
         self.description = ""
         self.role_description = ""
         self.value = None
         self.max_depth = max_depth
+        self.app_name = None  # <-- add here
 
         # set role
         self.role = element_attribute(element, ApplicationServices.kAXRoleAttribute)
@@ -105,9 +98,12 @@ class UIElement:
             position, ApplicationServices.kAXValueCGPointType
         )
 
+        # if window, track app_name
         if self.role == "AXWindow":
-            offset_x = start_position.x
-            offset_y = start_position.y
+            self.app_name = getattr(element, "app_name", None)  
+            if start_position is not None:
+                offset_x = start_position.x
+                offset_y = start_position.y
 
         self.absolute_position = copy.copy(start_position)
         self.position = start_position
@@ -117,6 +113,13 @@ class UIElement:
         self.size = element_value(size, ApplicationServices.kAXValueCGSizeType)
 
         self._set_bboxes(parents_visible_bbox)
+
+        # set visibility of a bbox
+        self.visible = False
+        if self.visible_bbox:
+            vx1, vy1, vx2, vy2 = self.visible_bbox
+            self.visible = (vx2 > vx1) and (vy2 > vy1)
+
 
         # set component center
         if start_position is None or self.size is None:
@@ -154,8 +157,66 @@ class UIElement:
             self.children, self.action_items = [], []
 
         self.calculate_hashes()
-
         self.unrolled = False
+
+    def to_dict(self):
+        def children_to_dict(children):
+            result = []
+            for child in children:
+                result.append(child.to_dict())
+            return result
+
+        value = self.value
+        if isinstance(value, UIElement):
+            value = json.dumps(value.to_dict(), indent=4)
+        elif isinstance(value, AppKit.NSDate):
+            value = str(value)
+
+        if self.absolute_position is not None:
+            absolute_position = f"{self.absolute_position.x:.2f};{self.absolute_position.y:.2f}"
+        else:
+            absolute_position = ""
+
+        if self.position is not None:
+            position = f"{self.position.x:.2f};{self.position.y:.2f}"
+        else:
+            position = ""
+
+        if self.size is not None:
+            size = f"{self.size.width:.0f};{self.size.height:.0f}"
+        else:
+            size = ""
+
+        result = {
+            "id": self.identifier,
+            "name": self.name,
+            "role": self.role,
+            "description": self.description,
+            "role_description": self.role_description,
+            "value": value,
+            "absolute_position": absolute_position,
+            "position": position,
+            "size": size,
+            "enabled": self.enabled,
+            "bbox": self.bbox,
+            "visible_bbox": self.visible_bbox,
+            "visible": self.visible,
+            "children": children_to_dict(self.children),
+        }
+
+        if self.app_name is not None and (
+            self.role == "AXWindow" or self.app_name in ("Dock", "MenuBar (App)", "MenuBar (System)")
+        ):
+            result["app_name"] = self.app_name
+
+        return result
+
+
+    # calculate hash for the element
+    def calculate_hashes(self):
+        self.identifier = self.component_hash()
+        self.content_identifier = self.children_content_hash(self.children)
+
 
     def _set_bboxes(self, parents_visible_bbox):
         if not self.position or not self.size:
@@ -329,56 +390,7 @@ class UIElement:
                 result.append(child)
         return result
 
-    # to dict
-    def to_dict(self):
-        def children_to_dict(children):
-            result = []
-            for child in children:
-                result.append(child.to_dict())
-            return result
 
-        value = self.value
-        if isinstance(value, UIElement):
-            value = json.dumps(value.to_dict(), indent=4)
-        elif isinstance(value, AppKit.NSDate):
-            value = str(value)
-
-        if self.absolute_position is not None:
-            absolute_position = f"{self.absolute_position.x:.2f};{self.absolute_position.y:.2f}"
-        else:
-            absolute_position = ""
-
-        if self.position is not None:
-            position = f"{self.position.x:.2f};{self.position.y:.2f}"
-        else:
-            position = ""
-
-        if self.size is not None:
-            size = f"{self.size.width:.0f};{self.size.height:.0f}"
-        else:
-            size = ""
-
-        return {
-            "id": self.identifier,
-            "name": self.name,
-            "role": self.role,
-            "description": self.description,
-            "role_description": self.role_description,
-            "value": value,
-            "absolute_position": absolute_position,
-            "position": position,
-            "size": size,
-            "enabled": self.enabled,
-            "bbox": self.bbox,
-            "visible_bbox": self.visible_bbox,
-            "children": children_to_dict(self.children),
-        }
-
-    #  additional checks
-
-    # check if element is a button
-    def is_button(self) -> bool:
-        return self.role == "AXButton"
 
 
 # get accessibility element attribute
