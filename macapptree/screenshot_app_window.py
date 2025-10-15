@@ -8,117 +8,9 @@ import AppKit
 from unidecode import unidecode
 from PIL import Image
 from macapptree.exceptions import WindowNotFoundException
-
 import time as _time
 
-def reveal_dock_temporarily(orientation: str, dwell: float = 0.7):
-    try:
-        screen = AppKit.NSScreen.mainScreen().frame()
-        sw, sh = int(screen.size.width), int(screen.size.height)
-
-        if orientation and orientation.lower() == "left":
-            x, y = 2, sh // 2
-        elif orientation and orientation.lower() == "right":
-            x, y = sw - 2, sh // 2
-        else: 
-            x, y = sw // 2, sh - 2
-
-        evt = Quartz.CGEventCreateMouseEvent(
-            None, Quartz.kCGEventMouseMoved, (x, y), Quartz.kCGMouseButtonLeft
-        )
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, evt)
-        _time.sleep(dwell)
-    except Exception:
-        pass
-
-import subprocess, AppKit
-
-def _read_defaults(domain: str, key: str, fallback=None):
-    try:
-        out = subprocess.check_output(
-            ["defaults", "read", domain, key],
-            stderr=subprocess.STDOUT,
-            text=True
-        ).strip()
-        return out
-    except Exception:
-        return fallback
-
-def get_dock_prefs():
-    orient = _read_defaults("com.apple.dock", "orientation", "bottom")
-    tilesize = int(float(_read_defaults("com.apple.dock", "tilesize", "64")))
-    magnification = (_read_defaults("com.apple.dock", "magnification", "0") in ("1", "true", "YES"))
-    largesize = int(float(_read_defaults("com.apple.dock", "largesize", str(tilesize))))
-    autohide = (_read_defaults("com.apple.dock", "autohide", "0") in ("1", "true", "YES"))
-    return {
-        "orientation": orient,
-        "tilesize": tilesize,
-        "magnification": magnification,
-        "largesize": largesize,
-        "autohide": autohide,
-    }
-
-def dock_rect_from_prefs() -> tuple[int,int,int,int]:
-    prefs = get_dock_prefs()
-    screen = AppKit.NSScreen.mainScreen().frame()
-    sw, sh = int(screen.size.width), int(screen.size.height)
-
-    base = prefs["largesize"] if prefs["magnification"] else prefs["tilesize"]
-    thickness_pt = int(base + 24) 
-
-    o = (prefs["orientation"] or "bottom").lower()
-    if o == "left":
-        return (0, 0, thickness_pt, sh)
-    if o == "right":
-        return (sw - thickness_pt, 0, thickness_pt, sh)
-    return (0, sh - thickness_pt, sw, thickness_pt) 
-
-
-def get_dock_window_bounds():
-    """
-    Return (x_tl, y_tl, w, h) for the actual Dock window.
-    """
-    windows = Quartz.CGWindowListCopyWindowInfo(
-        Quartz.kCGWindowListOptionAll,
-        Quartz.kCGNullWindowID
-    )
-    # main screen for heuristics
-    screen = AppKit.NSScreen.mainScreen().frame()
-    screen_w, screen_h = int(screen.size.width), int(screen.size.height)
-
-    # gather all windows that belong to Dock
-    dock_wins = []
-    for w in windows:
-        owner = w.get("kCGWindowOwnerName", "") or ""
-        if owner != "Dock":
-            continue
-        b = w.get("kCGWindowBounds", {})
-        if not b:
-            continue
-        x, y, W, H = int(b.get("X", 0)), int(b.get("Y", 0)), int(b.get("Width", 0)), int(b.get("Height", 0))
-        layer = int(w.get("kCGWindowLayer", 0))
-        alpha = float(w.get("kCGWindowAlpha", 1.0))
-        if alpha == 0 or W == 0 or H == 0:
-            continue
-        dock_wins.append((x, y, W, H, layer))
-
-    if not dock_wins:
-        return None
-
-    candidates = []
-    for x, y, W, H, layer in dock_wins:
-        area = W * H
-        bottom_like = (y >= screen_h - H - 4) and (W >= 0.4 * screen_w) and (H <= screen_h * 0.33)
-        side_like   = (H >= 0.4 * screen_h) and (W <= screen_w * 0.33)
-        if bottom_like or side_like:
-            candidates.append((area, x, y, W, H))
-
-    if not candidates:
-        x, y, W, H, _ = max(dock_wins, key=lambda t: t[2] * t[3])
-        return (x, y, W, H)
-
-    _, x, y, W, H = max(candidates, key=lambda t: t[0])
-    return (x, y, W, H)
+DOCK_BUNDLE = "com.apple.dock"
 
 
 class ScreencaptureEx(Exception):
@@ -356,89 +248,6 @@ def screenshot_image_element(element: UIElement, output_folder: str):
 
 
 
-from typing import List, Dict, Tuple
-
-# --- helper: map running apps for requested bundle ids ---
-def _get_running_apps_for_bundles(bundle_ids: List[str]) -> Tuple[Dict[int,str], Dict[str, AppKit.NSRunningApplication]]:
-    """
-    Returns:
-      pid_to_bundle: { pid: bundle_id } for running apps that match bundle_ids
-      bundle_to_app: { bundle_id: NSRunningApplication }
-    """
-    workspace = AppKit.NSWorkspace.sharedWorkspace()
-    pid_to_bundle = {}
-    bundle_to_app = {}
-    for app in workspace.runningApplications():
-        bid = app.bundleIdentifier()
-        if bid in bundle_ids:
-            pid_to_bundle[int(app.processIdentifier())] = bid
-            bundle_to_app[bid] = app
-    return pid_to_bundle, bundle_to_app
-
-
-def get_visible_windows_for_bundles(bundle_ids: List[str]) -> List[Dict]:
-    """
-    Returns a list of windows that belong to any of the running applications
-    specified by bundle_ids.
-
-    Each returned item is a dict:
-    {
-      "window_number": int,
-      "owner": str,            # owner name
-      "name": str,             # window name (may be empty)
-      "bounds": (x, y, w, h), # integers, screen coordinates
-      "pid": int,
-      "bundle": "com.example.app",
-      "layer": int,
-      "alpha": float,
-      "raw": <original CGWindow dict>,
-      "z_index": int           # index from CGWindowListCopyWindowInfo (used for ordering)
-    }
-
-    Ordering: front (top-most) -> back (bottom-most). Sorting heuristic:
-      - higher window layer first
-      - then by the position returned by CGWindowListCopyWindowInfo
-    """
-    pid_map, bundle_apps = _get_running_apps_for_bundles(bundle_ids)
-
-    windows = get_window_info()
-    results = []
-    for idx, win in enumerate(windows):
-        pid = win.get("kCGWindowOwnerPID")
-        if pid is None:
-            continue
-        pid = int(pid)
-        if pid not in pid_map:
-            continue
-
-        num = win.get("kCGWindowNumber")
-        owner = win.get("kCGWindowOwnerName", "") or ""
-        name = win.get("kCGWindowName", "") or ""
-        bounds = win.get("kCGWindowBounds", {}) or {}
-        x = int(bounds.get("X", 0))
-        y = int(bounds.get("Y", 0))
-        w = int(bounds.get("Width", 0))
-        h = int(bounds.get("Height", 0))
-        layer = int(win.get("kCGWindowLayer", 0))
-        alpha = float(win.get("kCGWindowAlpha", 1.0))
-
-        results.append({
-            "window_number": num,
-            "owner": owner,
-            "name": name,
-            "bounds": (x, y, w, h),
-            "pid": pid,
-            "bundle": pid_map[pid],
-            "layer": layer,
-            "alpha": alpha,
-            "z_index": idx
-        })
-
-
-    results.sort(key=lambda w: (-w["layer"], w["z_index"]))
-    return results
-
-from typing import List, Tuple
 
 Rect = Tuple[int, int, int, int]  # (x, y, w, h)
 
@@ -457,10 +266,6 @@ def rect_intersection(a: Rect, b: Rect) -> Rect | None:
 
 
 def rect_subtract(a: Rect, bs: List[Rect]) -> List[Rect]:
-    """
-    Subtract rectangles bs from a.
-    Returns a list of remaining non-overlapping rects (may be multiple).
-    """
     remaining = [a]
     for b in bs:
         new_remaining = []
