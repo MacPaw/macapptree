@@ -7,10 +7,10 @@ import time
 from PIL import ImageGrab, Image, ImageDraw, ImageFont
 
 from macapptree.screenshot_app_window import (
-    get_window_info,
-    get_visible_windows_for_bundles,
     rect_subtract,
 )
+
+from macapptree.apps import get_visible_windows_for_bundles
 import macapptree.apps as apps
 from macapptree.window_tools import store_screen_scaling_factor, segment_window_components
 from macapptree.uielement import UIElement, element_attribute, element_value
