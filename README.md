@@ -50,6 +50,28 @@ tree, im, im_seg = get_tree_screenshot(bundle)
 
 ```
 
+### CLI Example (multi-app)
+
+Capture the accessibility of all currently running and visible apps (with upper menu and dock included):
+```python
+python -m macapptree.main \
+  --oa shots/dump.json \
+  --os shots \
+  --all-apps \
+  --include-menubar \
+  --include-dock
+```
+
+Or specify apps explicitly:
+```python
+python -m macapptree.main \
+  -a com.apple.Safari com.google.Chrome \
+  --oa shots/dump.json \
+  --os shots \
+  --include-menubar \
+  --include-dock
+```
+
 ### Output
 
 * **tree**: A Python dictionary representing the accessibility hierarchy.
