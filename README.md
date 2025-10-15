@@ -10,8 +10,8 @@
 
 ## Features
 
-- **Accessibility Tree Extraction**: Retrieve the accessibility hierarchy of a macOS application in JSON format.
-- **Screenshot Capture**: Capture a cropped screenshot of the application window.
+- **Accessibility Tree Extraction of Apps**: Retrieve the accessibility hierarchy of a single or multiple macOS applications in JSON format.
+- **Screenshot Capture**: Capture a cropped screenshot of the application window and full screen.
 - **Labeled Visual Output**: Generate a segmented screenshot with bounding boxes highlighting UI elements, colored by their types.
 
 ---
