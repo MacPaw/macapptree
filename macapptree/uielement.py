@@ -114,7 +114,7 @@ class UIElement:
 
         self._set_bboxes(parents_visible_bbox)
 
-        # set visibility of a bbox
+        # # set visibility of a bbox
         self.visible = False
         if self.visible_bbox:
             vx1, vy1, vx2, vy2 = self.visible_bbox
