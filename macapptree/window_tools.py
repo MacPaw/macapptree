@@ -147,7 +147,6 @@ def segment_window_components(window, image_path: str):
         print(f"Image for window {window.name} not found")
         return
 
-    # copy the image for segmentation using new path
     segment_image_path = image_path.replace(".png", "_segmented.png")
     shutil.copy2(image_path, segment_image_path)
     sleep(0.5)
@@ -159,29 +158,13 @@ def segment_window_components(window, image_path: str):
     return segment_image_path
 
 
-def _is_visible(elem) -> bool:
-    """
-    An element is visible iff it has a non-empty visible_bbox.
-    We also accept a precomputed `visible` attribute if present.
-    """
-    vflag = getattr(elem, "visible", None)
-    if isinstance(vflag, bool):
-        return vflag
-    vb = getattr(elem, "visible_bbox", None)
-    if not vb:
-        return False
-    x1, y1, x2, y2 = vb
-    return (x2 > x1) and (y2 > y1)
-
-
 # paint all children to a different color on the screenshot
-def segment_image(image_path, window_element, image_drawer=None, image=None):
+def segment_image(image_path, window_element, image_drawer=None, img=None):
     if image_path is None:
         return
 
     # open the image and create a drawer
     draw = image_drawer
-    img = image
 
     if draw is None:
         img = Image.open(image_path)
@@ -189,11 +172,10 @@ def segment_image(image_path, window_element, image_drawer=None, image=None):
 
     # iterate over all children
     for child in getattr(window_element, "children", []):
-        # Recurse first: a non-visible parent may still have visible descendants
         if getattr(child, "children", None):
-            segment_image(image_path, child, image_drawer=draw, image=img)
+            segment_image(image_path, child, image_drawer=draw, img=img)
 
-        if not _is_visible(child):
+        if not child.visible:
             continue
 
         bbox = child.visible_bbox
@@ -206,14 +188,13 @@ def segment_image(image_path, window_element, image_drawer=None, image=None):
 
         height_offset = 0 if size.height < 2 else 2
 
-        # Convert to device pixels (Retina)
+        # convert to device pixels 
         x1, y1, x2, y2 = bbox
         rx1 = int(x1 * _screen_scaling_factor)
         ry1 = int(y1 * _screen_scaling_factor)
         rx2 = int(x2 * _screen_scaling_factor) - 1
         ry2 = int(y2 * _screen_scaling_factor) - height_offset + 1
 
-        # Clamp sanity
         if rx2 < rx1:
             rx2 = rx1
         if ry2 < ry1:
