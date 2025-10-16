@@ -20,7 +20,7 @@ def convert_point_to_window(point, window_element):
     for screen in AppKit.NSScreen.screens():
         if AppKit.NSPointInRect(point, screen.frame()):
             return AppKit.NSMakePoint(
-                point.x + window_element.x,
+                point.x + window_element.x, 
                 point.y - 1 + window_element.y,
             )
     return AppKit.NSMakePoint(0.0, 0.0)
@@ -163,17 +163,14 @@ def segment_image(image_path, window_element, image_drawer=None, img=None):
     if image_path is None:
         return
 
-    # open the image and create a drawer
-    draw = image_drawer
-
-    if draw is None:
+    if image_drawer is None:
         img = Image.open(image_path)
-        draw = ImageDraw.Draw(img)
+        image_drawer = ImageDraw.Draw(img)
 
     # iterate over all children
     for child in getattr(window_element, "children", []):
         if getattr(child, "children", None):
-            segment_image(image_path, child, image_drawer=draw, img=img)
+            segment_image(image_path, child, image_drawer=image_drawer, img=img)
 
         if not child.visible:
             continue
@@ -182,7 +179,7 @@ def segment_image(image_path, window_element, image_drawer=None, img=None):
         if not bbox:
             continue
 
-        size = getattr(child, "size", None)
+        size = child.size
         if size is None or size.width == 0 or size.height == 0:
             continue
 
@@ -203,7 +200,7 @@ def segment_image(image_path, window_element, image_drawer=None, img=None):
         color = color_for_role(getattr(child, "role", ""))
 
         try:
-            draw.rectangle([(rx1, ry1), (rx2, ry2)], outline=color, width=2)
+            image_drawer.rectangle([(rx1, ry1), (rx2, ry2)], outline=color, width=2)
         except Exception as e:
             print(f"Error drawing rectangle: {e}")
 
