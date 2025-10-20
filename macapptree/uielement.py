@@ -460,3 +460,13 @@ def print_node(node, level=0):
     print("  " * level + " " + role + position + name)
     for child in node.children:
         print_node(child, level + 1)
+
+def _flatten_ui_elements(ui_elements):
+    flat = []
+    def recurse(e):
+        flat.append(e)
+        for c in getattr(e, "children", []):
+            recurse(c)
+    for root in ui_elements:
+        recurse(root)
+    return flat
