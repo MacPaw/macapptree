@@ -1,6 +1,7 @@
 from typing import Iterable, List, Dict, AnyStr, Union, Tuple
 from macapptree.uielement import UIElement
 import subprocess
+from PIL import ImageGrab
 import time
 import Quartz
 import os
@@ -36,6 +37,16 @@ def get_window_info() -> List[WindowInfo]:
         Quartz.kCGNullWindowID,
     )
 
+
+def capture_full_screen(output_path: str):
+    screen = AppKit.NSScreen.mainScreen()
+    frame = screen.frame()
+    left, top = int(frame.origin.x), int(frame.origin.y)
+    width, height = int(frame.size.width), int(frame.size.height)
+    img = ImageGrab.grab(bbox=(left, top, left + width, top + height))
+    img.save(output_path)
+    print(f"Full-screen screenshot saved to {output_path}")
+    return output_path
 
 # generate window ids
 def gen_ids_from_info(
