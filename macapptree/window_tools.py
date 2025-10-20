@@ -4,8 +4,29 @@ import shutil
 from PIL import Image, ImageDraw
 from time import sleep
 
+from macapptree.apps import get_visible_windows_for_bundles
+from macapptree.screenshot_app_window import rect_subtract
 
 _screen_scaling_factor = 1
+
+def propagate_screen_rect(ui_element, screen_rect_tl):
+    ui_element.window_screen_rect = screen_rect_tl
+    for child in getattr(ui_element, "children", []):
+        propagate_screen_rect(child, screen_rect_tl)
+
+# get intersection over union for two bboxes
+def _iou(a, b):
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    area_a = max(0, ax2 - ax1) * max(0, ay2 - ay1)
+    area_b = max(0, bx2 - bx1) * max(0, by2 - by1)
+    return inter / float(area_a + area_b - inter + 1e-9)
 
 # get the screen scaling factor
 def store_screen_scaling_factor():
@@ -156,6 +177,21 @@ def segment_window_components(window, image_path: str):
     sleep(0.5)
 
     return segment_image_path
+
+def _build_global_visible_index(bundle_ids):
+    windows = get_visible_windows_for_bundles(bundle_ids) 
+    seen = []
+    out = []
+    for w in windows:
+        x, y, W, H = w["bounds"]
+        full = (x, y, W, H)
+        remaining = rect_subtract(full, seen)
+        if remaining:
+            out.append({"pid": w["pid"], "bounds": full, "visible": remaining})
+            seen.append(full)
+        else:
+            out.append({"pid": w["pid"], "bounds": full, "visible": []})
+    return out
 
 
 # paint all children to a different color on the screenshot
