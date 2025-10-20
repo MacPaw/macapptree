@@ -6,209 +6,20 @@ import os
 import time
 from PIL import ImageGrab, Image, ImageDraw, ImageFont
 
-from macapptree.screenshot_app_window import (
-    rect_subtract,
-)
-
 from macapptree.apps import get_visible_windows_for_bundles
 import macapptree.apps as apps
 from macapptree.window_tools import store_screen_scaling_factor, segment_window_components
 from macapptree.uielement import UIElement, element_attribute, element_value
 from macapptree.extractor import extract_window
-from macapptree.screenshot_app_window import screenshot_window_to_file
-from macapptree.apps import dock_ax_application
+from macapptree.screenshot_app_window import screenshot_window_to_file, capture_full_screen, rect_subtract
+from macapptree.uielement import _flatten_ui_elements
+from macapptree.window_tools import propagate_screen_rect, _iou, _build_global_visible_index
 
-DOCK_THICKNESS_PT = 96 
-
-def _dock_tl_rect_fixed(orientation: str = "bottom") -> tuple[int, int, int, int]:
-    screen = AppKit.NSScreen.mainScreen().frame()
-    sw, sh = int(screen.size.width), int(screen.size.height)
-    t = int(DOCK_THICKNESS_PT)
-    o = (orientation or "bottom").lower()
-    if o == "left":
-        return (0, 0, t, sh)
-    if o == "right":
-        return (sw - t, 0, t, sh)
-    return (0, sh - t, sw, t)  
+from macapptree.menu_bar_utils import MenuBarCapture
+from macapptree.dock_utils import DockCapture
 
 
-def _iou(a, b):
-    ax1, ay1, ax2, ay2 = a
-    bx1, by1, bx2, by2 = b
-    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
-    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
-    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
-    inter = iw * ih
-    if inter <= 0:
-        return 0.0
-    area_a = max(0, ax2 - ax1) * max(0, ay2 - ay1)
-    area_b = max(0, bx2 - bx1) * max(0, by2 - by1)
-    return inter / float(area_a + area_b - inter + 1e-9)
 
-def _build_global_visible_index(bundle_ids):
-    windows = get_visible_windows_for_bundles(bundle_ids) 
-    seen = []
-    out = []
-    for w in windows:
-        x, y, W, H = w["bounds"]
-        full = (x, y, W, H)
-        remaining = rect_subtract(full, seen)
-        if remaining:
-            out.append({"pid": w["pid"], "bounds": full, "visible": remaining})
-            seen.append(full)
-        else:
-            out.append({"pid": w["pid"], "bounds": full, "visible": []})
-    return out
-
-def _menu_bar_tl_rect() -> tuple[int,int,int,int]:
-    """Return TOP-LEFT rect of the menu bar in points."""
-    screen = AppKit.NSScreen.mainScreen().frame()
-    sw, sh = int(screen.size.width), int(screen.size.height)
-    thickness = int(AppKit.NSStatusBar.systemStatusBar().thickness())
-    return (0, 0, sw, thickness)
-
-def _menubar_ax_for_front_app():
-    ws = AppKit.NSWorkspace.sharedWorkspace()
-    front = ws.frontmostApplication()
-    if not front:
-        return None
-    ax_app = apps.application_for_process_id(front.processIdentifier())
-    try:
-        return element_attribute(ax_app, ApplicationServices.kAXMenuBarAttribute)
-    except Exception:
-        return None
-
-def _menubar_ax_for_system():
-    ws = AppKit.NSWorkspace.sharedWorkspace()
-    for ra in ws.runningApplications():
-        if ra.bundleIdentifier() == "com.apple.SystemUIServer":
-            return apps.application_for_process_id(ra.processIdentifier())
-    return None
-
-# menu bar (top)
-def process_menu_bar(max_depth=None, output_screenshot_dir=None):
-    store_screen_scaling_factor()
-
-    x_tl, y_tl, w, h = _menu_bar_tl_rect()
-    win_rect_tl = [x_tl, y_tl, x_tl + w, y_tl + h]
-
-    roots, shot_info = [], None
-
-    ax_mb_left = _menubar_ax_for_front_app()
-    if ax_mb_left:
-        mb_left = UIElement(
-            ax_mb_left,
-            max_depth=max_depth,
-            parents_visible_bbox=[0, 0, w, h],
-        )
-        mb_left.app_name = "MenuBar (App)"
-        mb_left.window_screen_rect = win_rect_tl
-        extract_window(mb_left, "front.app.menubar", None,
-                       perform_hit_test=False, print_nodes=False, max_depth=max_depth)
-        _propagate_screen_rect(mb_left, win_rect_tl)
-        roots.append(mb_left)
-
-    ax_sys = _menubar_ax_for_system()
-    if ax_sys:
-        try:
-            ax_mb_right = element_attribute(ax_sys, ApplicationServices.kAXMenuBarAttribute) or ax_sys
-        except Exception:
-            ax_mb_right = ax_sys
-        mb_right = UIElement(
-            ax_mb_right,
-            max_depth=max_depth,
-            parents_visible_bbox=[0, 0, w, h],
-        )
-        mb_right.app_name = "MenuBar (System)"
-        mb_right.window_screen_rect = win_rect_tl
-        extract_window(mb_right, "com.apple.SystemUIServer", None,
-                       perform_hit_test=False, print_nodes=False, max_depth=max_depth)
-        _propagate_screen_rect(mb_right, win_rect_tl)
-        roots.append(mb_right)
-
-    if output_screenshot_dir:
-        os.makedirs(output_screenshot_dir, exist_ok=True)
-        full_path = os.path.join(output_screenshot_dir, "menubar_full.png")
-        capture_full_screen(full_path)
-
-        crop_path = full_path.replace(".png", "_cropped.png")
-        from macapptree.screenshot_app_window import crop_screenshot
-        _ = crop_screenshot(full_path, (x_tl, y_tl, w, h), crop_path)
-
-        if roots:
-            segment_window_components(roots[0], crop_path)
-        shot_info = {
-            "app": "menubar",
-            "window_name": "MenuBar",
-            "cropped_screenshot_path": crop_path,
-            "segmented_screenshot_path": crop_path.replace(".png", "_segmented.png"),
-        }
-
-    return roots, shot_info
-
-
-# dock
-def process_dock(max_depth=None, output_screenshot_dir=None):
-    store_screen_scaling_factor()
-
-    dock_ax = dock_ax_application()
-    if dock_ax is None:
-        print("Dock not found/running.")
-        return None, None
-
-    x_tl, y_tl, w, h = _dock_tl_rect_fixed("bottom")
-
-    dock_root = UIElement(
-        dock_ax,
-        offset_x=x_tl,
-        offset_y=y_tl,
-        max_depth=max_depth,
-        parents_visible_bbox=[0, 0, w, h],
-    )
-    dock_root.app_name = "Dock"
-    dock_root.window_screen_rect = [x_tl, y_tl, x_tl + w, y_tl + h]
-
-    extract_window(
-        dock_root, "com.apple.dock", None,
-        perform_hit_test=False, print_nodes=False, max_depth=max_depth
-    )
-    _propagate_screen_rect(dock_root, dock_root.window_screen_rect)
-
-    screenshot_info = None
-    if output_screenshot_dir:
-        os.makedirs(output_screenshot_dir, exist_ok=True)
-        full_path = os.path.join(output_screenshot_dir, "dock_full.png")
-        capture_full_screen(full_path)
-
-        crop_path = full_path.replace(".png", "_cropped.png")
-        from macapptree.screenshot_app_window import crop_screenshot
-        _ = crop_screenshot(full_path, (x_tl, y_tl, w, h), crop_path)
-
-        segmented_path = segment_window_components(dock_root, crop_path) or crop_path
-        screenshot_info = {
-            "app": "com.apple.dock",
-            "window_name": "Dock",
-            "cropped_screenshot_path": crop_path,
-            "segmented_screenshot_path": segmented_path,
-        }
-
-    return dock_root, screenshot_info
-
-
-def _propagate_screen_rect(ui_element, screen_rect_tl):
-    ui_element.window_screen_rect = screen_rect_tl
-    for child in getattr(ui_element, "children", []):
-        _propagate_screen_rect(child, screen_rect_tl)
-
-def capture_full_screen(output_path: str):
-    screen = AppKit.NSScreen.mainScreen()
-    frame = screen.frame()
-    left, top = int(frame.origin.x), int(frame.origin.y)
-    width, height = int(frame.size.width), int(frame.size.height)
-    img = ImageGrab.grab(bbox=(left, top, left + width, top + height))
-    img.save(output_path)
-    print(f"Full-screen screenshot saved to {output_path}")
-    return output_path
 
 def get_window_rect(window):
     pos = element_attribute(window, ApplicationServices.kAXPositionAttribute)
@@ -352,7 +163,7 @@ def process_app(app_bundle, max_depth, output_screenshot_dir=None, global_vis_in
             ui_window, app_bundle, None,
             perform_hit_test=False, print_nodes=False, max_depth=max_depth
         )
-        _propagate_screen_rect(ui_window, win_screen_rect)
+        propagate_screen_rect(ui_window, win_screen_rect)
         all_ui_elements.append(ui_window)
 
         if output_screenshot_dir:
@@ -394,7 +205,6 @@ def main(app_bundles, output_accessibility_file, output_screenshot_dir, max_dept
         full_screen_path = os.path.join(output_screenshot_dir, "full_screen.png")
         capture_full_screen(full_screen_path)
 
-    # Build global visible index (front->back)
     global_vis_index = _build_global_visible_index(app_bundles)
 
     for app_bundle in app_bundles:
@@ -407,19 +217,23 @@ def main(app_bundles, output_accessibility_file, output_screenshot_dir, max_dept
 
     if include_menubar:
         print("Processing Menu Bar…")
-        mb_roots, mb_shots = process_menu_bar(max_depth, output_screenshot_dir)
-        for r in mb_roots:
+        mb = MenuBarCapture()
+        mb_roots, mb_shots = mb.capture(max_depth, output_screenshot_dir)
+        for r in mb_roots or []:
             all_elements.append(r)
         if mb_shots:
             all_screenshots.append(mb_shots)
 
     if include_dock:
         print("Processing Dock…")
-        dock_root, dock_shots = process_dock(max_depth, output_screenshot_dir)
+        dock = DockCapture(orientation="bottom", reveal=True, dwell=0.8)
+
+        dock_root, dock_shots = dock.capture(max_depth, output_screenshot_dir)
         if dock_root:
             all_elements.append(dock_root)
         if dock_shots:
             all_screenshots.append(dock_shots)
+
 
     accessibility_data = []
     for e in all_elements:
@@ -438,15 +252,7 @@ def main(app_bundles, output_accessibility_file, output_screenshot_dir, max_dept
         all_elements_flat = _flatten_ui_elements(all_elements)
         draw_bounding_boxes_on_full_screen(full_screen_path, all_elements_flat, annotated_path)
 
-def _flatten_ui_elements(ui_elements):
-    flat = []
-    def recurse(e):
-        flat.append(e)
-        for c in getattr(e, "children", []):
-            recurse(c)
-    for root in ui_elements:
-        recurse(root)
-    return flat
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
