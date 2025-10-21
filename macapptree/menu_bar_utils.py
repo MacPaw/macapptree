@@ -10,6 +10,7 @@ from macapptree.uielement import UIElement, element_attribute
 from macapptree.window_tools import store_screen_scaling_factor, segment_window_components, propagate_screen_rect
 from macapptree.extractor import extract_window
 from macapptree.screenshot_app_window import capture_full_screen
+from macapptree.screenshot_app_window import crop_screenshot
 
 
 class MenuBarCapture:
@@ -96,7 +97,7 @@ class MenuBarCapture:
             full_path = os.path.join(output_screenshot_dir, "menubar_full.png")
             capture_full_screen(full_path)
 
-            from macapptree.screenshot_app_window import crop_screenshot
+        
             crop_path = full_path.replace(".png", "_cropped.png")
             _ = crop_screenshot(full_path, (x_tl, y_tl, w, h), crop_path)
 
