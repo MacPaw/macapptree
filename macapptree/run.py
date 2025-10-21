@@ -71,6 +71,3 @@ def get_tree_screenshot(app_bundle, max_depth=None):
         a11y_tmp_file.close()
         screenshot_tmp_file.close()
 
-def get_visible_windows(app_bundles):
-    return screenshot_app_window.get_visible_windows_for_bundles(app_bundles)
-
