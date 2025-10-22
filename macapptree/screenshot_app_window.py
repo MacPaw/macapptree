@@ -1,6 +1,7 @@
 from typing import Iterable, List, Dict, AnyStr, Union, Tuple
 from macapptree.uielement import UIElement
 import subprocess
+from PIL import ImageGrab
 import time
 import Quartz
 import os
@@ -8,6 +9,9 @@ import AppKit
 from unidecode import unidecode
 from PIL import Image
 from macapptree.exceptions import WindowNotFoundException
+import time as _time
+
+DOCK_BUNDLE = "com.apple.dock"
 
 
 class ScreencaptureEx(Exception):
@@ -34,11 +38,21 @@ def get_window_info() -> List[WindowInfo]:
     )
 
 
+def capture_full_screen(output_path: str):
+    screen = AppKit.NSScreen.mainScreen()
+    frame = screen.frame()
+    left, top = int(frame.origin.x), int(frame.origin.y)
+    width, height = int(frame.size.width), int(frame.size.height)
+    img = ImageGrab.grab(bbox=(left, top, left + width, top + height))
+    img.save(output_path)
+    print(f"Full-screen screenshot saved to {output_path}")
+    return output_path
+
 # generate window ids
 def gen_ids_from_info(
         windows: Iterable[WindowInfo],
-) -> List[Tuple[int, str, str]]:  # Changed return type to List
-    result = []  # Initialize a list to store results
+) -> List[Tuple[int, str, str]]: 
+    result = [] 
     for win_dict in windows:
         owner = win_dict.get("kCGWindowOwnerName", "")
         num = win_dict.get("kCGWindowNumber", "")
@@ -56,10 +70,10 @@ def gen_ids_from_info(
 
 def gen_window_ids(
         parent: str,
-) -> List[Tuple[int, str]]:  # Changed return type to List[Tuple[int, str]]
+) -> List[Tuple[int, str]]: 
     windows = get_window_info()
     parent = parent.lower()
-    result = []  # Initialize a list to store results
+    result = [] 
 
     for num, owner, window_name, (x, y, width, height) in gen_ids_from_info(windows):
         if parent == owner.lower():
@@ -69,7 +83,7 @@ def gen_window_ids(
                 window_name = window_name.replace(" ", "_")
                 result.append((num, window_name, (x, y, width, height)))
 
-    return result  # Return the list of window IDs
+    return result 
 
 
 # take screenshot
@@ -77,7 +91,6 @@ def take_screenshot(window: int, filename: str, output_folder: str = None) -> st
     if output_folder:
         filename = os.path.join(output_folder, filename)
 
-        # create the output folder if it does not exist
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
@@ -105,23 +118,18 @@ def get_filename(window_name, extension, add_cursor_move) -> str:
 def crop_screenshot(image_path, window_coords, output_path):
     backing_scale_factor = AppKit.NSScreen.mainScreen().backingScaleFactor()
 
-    # Load the screenshot image
     screenshot = Image.open(image_path)
 
-    # Unpack the window coordinates (left, top, width, height)
     left, top, width, height = window_coords
 
-    # Calculate the right and bottom coordinates
     right = left + width
     bottom = top + height
 
-    # Crop the image using the window's bounds
     cropped_image = screenshot.crop((int(left * backing_scale_factor),
                                      int(top * backing_scale_factor),
                                      int(right * backing_scale_factor),
                                      int(bottom * backing_scale_factor)))
 
-    # Save the cropped image
     cropped_image.save(output_path)
     scaled_coors = (int(left ),
                     int(top ),
@@ -147,14 +155,13 @@ def find_window(
     for identifier, name, window_coords in windows:
         decoded_name = unidecode(name)
         
-        if decoded_name == decoded_window_name or decoded_window_name == app_name or window_name == "":  # Sometimes popup windows have an empty name
+        if decoded_name == decoded_window_name or decoded_window_name == app_name or window_name == "":  
             return identifier, decoded_name, window_coords
     
-    # if nothing found, try again with 'startwith'
     for identifier, name, window_coords in windows:
         decoded_name = unidecode(name)
         
-        if decoded_window_name.startswith(decoded_name):  # Sometimes popup windows have an empty name
+        if decoded_window_name.startswith(decoded_name): 
             return identifier, decoded_name, window_coords
     
     raise WindowNotFoundException(f"Window {window_name} not found.")
@@ -205,11 +212,11 @@ def screenshot_windows(
 
 
 # generate window ids
-def gen_windows(application_name: str) -> List[int]:  # Changed return type to List[int]
-    windows = list(gen_window_ids(application_name))  # Convert generator to list
-    if not windows:  # Check if the list is empty
+def gen_windows(application_name: str) -> List[int]:  
+    windows = list(gen_window_ids(application_name)) 
+    if not windows:  
         print(f"Window with parent {application_name} not found.")
-    return windows  # Return the list of windows
+    return windows 
 
 
 # screenshot application
@@ -249,3 +256,48 @@ def screenshot_image_element(element: UIElement, output_folder: str):
     filename = f"{element.get_name()}-{time.time():.2f}.{FILE_EXT}"
     image.save(os.path.join(output_folder, filename), FILE_EXT)
     print(f"Screenshot saved to {filename}")
+
+
+
+
+Rect = Tuple[int, int, int, int]  # (x, y, w, h)
+
+def rect_intersection(a: Rect, b: Rect) -> Rect | None:
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    ax2, ay2 = ax + aw, ay + ah
+    bx2, by2 = bx + bw, by + bh
+
+    ix1, iy1 = max(ax, bx), max(ay, by)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+
+    if ix1 < ix2 and iy1 < iy2:
+        return (ix1, iy1, ix2 - ix1, iy2 - iy1)
+    return None
+
+
+def rect_subtract(a: Rect, bs: List[Rect]) -> List[Rect]:
+    remaining = [a]
+    for b in bs:
+        new_remaining = []
+        for r in remaining:
+            inter = rect_intersection(r, b)
+            if not inter:
+                new_remaining.append(r)
+                continue
+            rx, ry, rw, rh = r
+            ix, iy, iw, ih = inter
+            # top
+            if iy > ry:
+                new_remaining.append((rx, ry, rw, iy - ry))
+            # bottom
+            if iy + ih < ry + rh:
+                new_remaining.append((rx, iy + ih, rw, (ry + rh) - (iy + ih)))
+            # left
+            if ix > rx:
+                new_remaining.append((rx, iy, ix - rx, ih))
+            # right
+            if ix + iw < rx + rw:
+                new_remaining.append((ix + iw, iy, (rx + rw) - (ix + iw), ih))
+        remaining = new_remaining
+    return remaining

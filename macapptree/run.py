@@ -4,7 +4,7 @@ import tempfile
 import json
 import re
 import os
-
+import macapptree.screenshot_app_window as screenshot_app_window
 
 def get_app_bundle(app_name):
     command = ['osascript', '-e', f'id of app "{app_name}"']
@@ -50,7 +50,6 @@ def get_tree_screenshot(app_bundle, max_depth=None):
         command.extend(["--max-depth", str(max_depth)])
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
-        # print(result.stdout)
         json_match = re.search(r'{.*}', result.stdout, re.DOTALL)
         if not json_match:
             print(f"Failed to extract screenshots for {app_bundle}")
@@ -71,3 +70,4 @@ def get_tree_screenshot(app_bundle, max_depth=None):
     finally:
         a11y_tmp_file.close()
         screenshot_tmp_file.close()
+

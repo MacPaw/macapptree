@@ -4,8 +4,29 @@ import shutil
 from PIL import Image, ImageDraw
 from time import sleep
 
+from macapptree.apps import get_visible_windows_for_bundles
+from macapptree.screenshot_app_window import rect_subtract
 
 _screen_scaling_factor = 1
+
+def propagate_screen_rect(ui_element, screen_rect_tl):
+    ui_element.window_screen_rect = screen_rect_tl
+    for child in getattr(ui_element, "children", []):
+        propagate_screen_rect(child, screen_rect_tl)
+
+# get intersection over union for two bboxes
+def _iou(a, b):
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    area_a = max(0, ax2 - ax1) * max(0, ay2 - ay1)
+    area_b = max(0, bx2 - bx1) * max(0, by2 - by1)
+    return inter / float(area_a + area_b - inter + 1e-9)
 
 # get the screen scaling factor
 def store_screen_scaling_factor():
@@ -19,13 +40,12 @@ def store_screen_scaling_factor():
 def convert_point_to_window(point, window_element):
     for screen in AppKit.NSScreen.screens():
         if AppKit.NSPointInRect(point, screen.frame()):
-            screen_height = screen.frame().size.height
             return AppKit.NSMakePoint(
-                point.x + window_element.x,
+                point.x + window_element.x, 
                 point.y - 1 + window_element.y,
             )
     return AppKit.NSMakePoint(0.0, 0.0)
-    
+
 
 # check if the windows are equal
 def windows_are_equal(window1, window2):
@@ -144,88 +164,82 @@ def color_for_role(role):
 # segment the window components
 def segment_window_components(window, image_path: str):
     print(f"Segmenting window {window.name}")
-    segment_image_path = None
-
-    if image_path is None or len(image_path) == 0:
+    if not image_path:
         print(f"Image for window {window.name} not found")
         return
 
-    print(f"Window name: {image_path}")
-
-    # copy the image for segmentation using new path
     segment_image_path = image_path.replace(".png", "_segmented.png")
-
-    # copy the image for segmentation
     shutil.copy2(image_path, segment_image_path)
-
     sleep(0.5)
 
     # segment the image
     segment_image(segment_image_path, window)
-
     sleep(0.5)
 
     return segment_image_path
 
+def _build_global_visible_index(bundle_ids):
+    windows = get_visible_windows_for_bundles(bundle_ids) 
+    seen = []
+    out = []
+    for w in windows:
+        x, y, W, H = w["bounds"]
+        full = (x, y, W, H)
+        remaining = rect_subtract(full, seen)
+        if remaining:
+            out.append({"pid": w["pid"], "bounds": full, "visible": remaining})
+            seen.append(full)
+        else:
+            out.append({"pid": w["pid"], "bounds": full, "visible": []})
+    return out
+
 
 # paint all children to a different color on the screenshot
-def segment_image(image_path, window_element, image_drawer=None, image=None):
+def segment_image(image_path, window_element, image_drawer=None, img=None):
     if image_path is None:
         return
 
-    # open the image and create a drawer
-    draw = image_drawer
-    image = image
-
-    # validate the image and drawer
     if image_drawer is None:
-        # draw a rectangle on the image
-        image = Image.open(image_path)
-        draw = ImageDraw.Draw(image)
+        img = Image.open(image_path)
+        image_drawer = ImageDraw.Draw(img)
 
     # iterate over all children
-    for child in window_element.children:
+    for child in getattr(window_element, "children", []):
+        if getattr(child, "children", None):
+            segment_image(image_path, child, image_drawer=image_drawer, img=img)
+
+        if not child.visible:
+            continue
+
         bbox = child.visible_bbox
-
-        if bbox is None:
+        if not bbox:
             continue
 
-        # position = child.position
         size = child.size
-
-        if size is None:
+        if size is None or size.width == 0 or size.height == 0:
             continue
 
-        # skip the element if it has no size
-        if size.width == 0 or size.height == 0:
-            continue
+        height_offset = 0 if size.height < 2 else 2
 
-        height_offset = 2
-        if size.height < 2:
-            height_offset = 0
+        # convert to device pixels 
+        x1, y1, x2, y2 = bbox
+        rx1 = int(x1 * _screen_scaling_factor)
+        ry1 = int(y1 * _screen_scaling_factor)
+        rx2 = int(x2 * _screen_scaling_factor) - 1
+        ry2 = int(y2 * _screen_scaling_factor) - height_offset + 1
 
-        retina_position = (bbox[0] * _screen_scaling_factor, (bbox[1] * _screen_scaling_factor))
+        if rx2 < rx1:
+            rx2 = rx1
+        if ry2 < ry1:
+            ry2 = ry1
 
-        # update the bottom right coordinate to support retina displays
-        bottom_right = (
-            (bbox[2] * _screen_scaling_factor) - 1,
-            ((bbox[3]) * _screen_scaling_factor) - height_offset + 1,
-        )
-
-        color = color_for_role(child.role)
-
-        if bottom_right[0] < 0 or bottom_right[0] < retina_position[0]:
-            bottom_right = (retina_position[0], bottom_right[1])
-        if bottom_right[1] < 0 or bottom_right[1] < retina_position[1]:
-            bottom_right = (bottom_right[0], retina_position[1])
+        color = color_for_role(getattr(child, "role", ""))
 
         try:
-            # draw a rectangle with a colored border
-            draw.rectangle([retina_position, bottom_right], outline=color, width=2)
+            image_drawer.rectangle([(rx1, ry1), (rx2, ry2)], outline=color, width=2)
         except Exception as e:
             print(f"Error drawing rectangle: {e}")
-        segment_image(image_path, child, image_drawer=draw, image=image)
+
     if image_drawer is None:
-        # save the image
         print(f"Saving segmented image to {image_path}")
-        image.save(image_path)
+        img.save(image_path)

@@ -4,14 +4,14 @@
 
 # macapptree
 
-`macapptree` is a Python package that extracts the accessibility tree of a macOS application's screen in JSON format. It also provides an option to capture screenshots of the application, including labeled bounding boxes with different colors representing various element types. This tool is useful for accessibility testing, UI automation, and visual debugging.
+`macapptree` is a Python package that extracts the accessibility tree of a macOS applications screen in JSON format. It also provides an option to capture screenshots of the application, including labeled bounding boxes with different colors representing various element types. This tool is useful for accessibility testing, UI automation, and visual debugging. You can also capture the accessibility of all currently running, visible apps and include the Dock and top Menu Bar.
 
 ---
 
 ## Features
 
-- **Accessibility Tree Extraction**: Retrieve the accessibility hierarchy of a macOS application in JSON format.
-- **Screenshot Capture**: Capture a cropped screenshot of the application window.
+- **Accessibility Tree Extraction of Apps**: Retrieve the accessibility hierarchy of a single or multiple macOS applications in JSON format.
+- **Screenshot Capture**: Capture a cropped screenshot of the application window and full screen.
 - **Labeled Visual Output**: Generate a segmented screenshot with bounding boxes highlighting UI elements, colored by their types.
 
 ---
@@ -48,6 +48,28 @@ tree, im, im_seg = get_tree_screenshot(bundle)
 # `im`: Cropped screenshot of the application window
 # `im_seg`: Labeled screenshot with bounding boxes indicating UI elements
 
+```
+
+### CLI Example (multi-app)
+
+Capture the accessibility of all currently running and visible apps (with upper menu and dock included):
+```python
+python -m macapptree.main \
+  --oa shots/dump.json \
+  --os shots \
+  --all-apps \
+  --include-menubar \
+  --include-dock
+```
+
+Or specify apps explicitly:
+```python
+python -m macapptree.main \
+  -a com.apple.Safari com.google.Chrome \
+  --oa shots/dump.json \
+  --os shots \
+  --include-menubar \
+  --include-dock
 ```
 
 ### Output
