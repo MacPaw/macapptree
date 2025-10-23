@@ -42,6 +42,9 @@ def _pid_to_bundle_map():
     return mapping
 
 def list_visible_app_bundles(extras_exclude: set[str] | None = None) -> list[str]:
+    """
+    List apps that have currently opened and visible windows.
+    """
     excludes = set(extras_exclude or set()) | _SYSTEM_EXCLUDES
     pid2bundle = _pid_to_bundle_map()
 
