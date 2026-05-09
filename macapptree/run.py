@@ -1,5 +1,6 @@
 from PIL import Image
 import subprocess
+import sys
 import tempfile
 import json
 import re
@@ -14,7 +15,7 @@ def get_app_bundle(app_name):
 
 def launch_app(app_bundle):
     try:
-        subprocess.check_call(["python", "-m", "macapptree.launch_app", "-a", app_bundle])
+        subprocess.check_call([sys.executable, "-m", "macapptree.launch_app", "-a", app_bundle])
     except subprocess.CalledProcessError as e:
         print(f"Failed to launch app: {app_bundle}. Error: {e.stderr}")
         raise e
@@ -24,7 +25,7 @@ def get_tree(app_bundle, max_depth=None):
     launch_app(app_bundle)
 
     tmp_file = tempfile.NamedTemporaryFile(delete=False)
-    command = ["python", "-m", "macapptree.main", "-a", app_bundle, "--oa", tmp_file.name]
+    command = [sys.executable, "-m", "macapptree.main", "-a", app_bundle, "--oa", tmp_file.name]
     if max_depth:
         command.extend(["--max-depth", str(max_depth)])
     try:
@@ -42,8 +43,8 @@ def get_tree_screenshot(app_bundle, max_depth=None):
     
     a11y_tmp_file = tempfile.NamedTemporaryFile(delete=False)
     screenshot_tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    command = ["python", "-m", "macapptree.main", 
-                "-a", app_bundle, 
+    command = [sys.executable, "-m", "macapptree.main",
+                "-a", app_bundle,
                 "--oa", a11y_tmp_file.name,
                 "--os", screenshot_tmp_file.name]
     if max_depth:
