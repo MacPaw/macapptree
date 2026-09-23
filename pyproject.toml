@@ -7,22 +7,46 @@ name = "macapptree"
 version = "0.0.2"
 dependencies = [
     "atomacos==3.3.0",
-    "pytest==7.4.4",
+    "Pillow>=9.0.0",
     "pyobjc==10.3.1",
     "unidecode==1.3.8"
 ]
 authors = [
   { name="Maksym Shamrai", email="mshamrai@macpaw.com" },
 ]
-description = "macOS accessibility parser"
+description = "macOS accessibility tree extractor with screenshot capture"
 readme = "README.md"
 requires-python = ">=3.8"
+keywords = [
+    "macos", "accessibility", "a11y", "ui-automation", "accessibility-tree",
+    "screenshot", "ui-testing", "axuielement"
+]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+]
+
+[project.scripts]
+macapptree = "macapptree.main:__main__"
 
 [project.urls]
 Homepage = "https://github.com/MacPaw/macapptree"
 Issues = "https://github.com/MacPaw/macapptree/issues"
+"Research" = "https://research.macpaw.com"
+"Paper" = "https://arxiv.org/abs/2510.16051"
